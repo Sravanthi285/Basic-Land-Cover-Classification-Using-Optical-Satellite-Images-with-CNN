@@ -8,6 +8,7 @@
 
 An enterprise-grade, full-stack geospatial platform designed to seamlessly integrate live satellite remote sensing with Deep Learning architecture. The platform allows users to interact with a 3D globe, dynamically drop pins on any coordinate across the planet, and instantly generate temporal land-use classification graphs based on Sentinel-2 optical data. 
 
+
 ## 🏗 System Architecture
 
 The application is distributed natively into three isolated layers:
@@ -21,7 +22,7 @@ The application is distributed natively into three isolated layers:
 ### 2. Analytical Engine (Backend)
 - **Python / Flask**: Lightweight RESTful microservice handling API ingestion and orchestration.
 - **Google Earth Engine (GEE)**: Authenticates via a Google Cloud Service Account `credentials.json` to scrape RAW historical raster data.
-  - **Temporal Mosaicking:** We apply a mathematical `.median()` spatial composite across entire years (2020 & 2025). This FAANG-grade technique completely eliminates atmospheric cloud noise and hardware sensor gaps commonly found in direct `.first()` passes.
+  - **Temporal Mosaicking:** We apply a mathematical `.median()` spatial composite across entire years (2020 & 2025). This  technique completely eliminates atmospheric cloud noise and hardware sensor gaps commonly found in direct `.first()` passes.
 - **NDVI Processing:** The backend strictly queries Near-Infrared (Band 8) and Red (Band 4) spectra, mathematically aggregating the **Normalized Difference Vegetation Index (NDVI)** to guarantee the biological ground-truth of the terrain's chlorophyll output.
 
 ### 3. Machine Learning (Modeling)
