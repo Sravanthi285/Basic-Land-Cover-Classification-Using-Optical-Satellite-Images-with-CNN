@@ -5,3 +5,4 @@ numpy
 earthengine-api
 requests
 gunicorn
+tensorflow
