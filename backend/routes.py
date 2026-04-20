@@ -12,6 +12,11 @@ import ee
 EE_READY = False
 try:
     cred_path = os.path.join(os.path.dirname(__file__), 'credentials.json')
+    
+    # Fallback for Render.com root secret file injection
+    if not os.path.exists(cred_path):
+        cred_path = os.path.join(os.path.dirname(__file__), '..', 'credentials.json')
+        
     if os.path.exists(cred_path):
         from google.oauth2 import service_account
         credentials = service_account.Credentials.from_service_account_file(
