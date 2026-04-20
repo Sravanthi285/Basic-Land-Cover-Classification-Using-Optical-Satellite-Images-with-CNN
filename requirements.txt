@@ -5,3 +5,4 @@ pillow
 numpy
 earthengine-api
 requests
+gunicorn
