@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dynamic Globe Land Use Classification</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- CesiumJS -->
+    <script src="https://cesium.com/downloads/cesiumjs/releases/1.115/Build/Cesium/Cesium.js"></script>
+    <link href="https://cesium.com/downloads/cesiumjs/releases/1.115/Build/Cesium/Widgets/widgets.css" rel="stylesheet">
+    
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <style>
+        body, html { margin: 0; padding: 0; height: 100%; overflow: hidden; background: #0f172a; color: white; }
+        #cesiumContainer { width: 100%; height: 100%; position: absolute; top: 0; left: 0; z-index: 1; }
+        #ui-panel {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            width: 400px;
+            max-height: 90vh;
+            overflow-y: auto;
+            z-index: 10;
+            background: rgba(15, 23, 42, 0.9);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+            padding: 24px;
+        }
+        .image-container { width: 100%; height: 150px; background: #1e293b; border-radius: 8px; margin-bottom: 8px; object-fit: cover; }
+        .chart-container { position: relative; height: 200px; width: 100%; }
+        
+        /* Custom scrollbar */
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #334155; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #475569; }
+        
+        /* Enterprise Laser Scan Animation */
+        @keyframes scan {
+            0% { top: -10%; }
+            50% { top: 110%; }
+            100% { top: -10%; }
+        }
+        .scan-line {
+            position: absolute;
+            width: 100%;
+            height: 4px;
+            background: rgba(34, 211, 238, 0.9);
+            box-shadow: 0 0 15px 5px rgba(34, 211, 238, 0.5);
+            top: -10%;
+            animation: scan 2s infinite ease-in-out;
+            z-index: 10;
+        }
+        .scanning-overlay {
+            position: absolute;
+            inset: 0;
+            background: rgba(14, 165, 233, 0.15);
+            z-index: 5;
+        }
+    </style>
+</head>
+<body class="font-sans antialiased text-slate-200">
+
+    <div id="cesiumContainer"></div>
+
+    <!-- Global Pan Controls -->
+    <div id="pan-controls" class="absolute bottom-6 left-1/2 -translate-x-1/2 z-20 flex flex-col items-center gap-2 bg-slate-900/70 p-3 rounded-xl backdrop-blur-md border border-slate-700/50 shadow-2xl">
+        <div class="text-xs text-slate-400 font-semibold mb-1 tracking-wider uppercase">Rotate Globe</div>
+        <button id="pan-up" class="bg-slate-700 hover:bg-cyan-600 p-2 rounded-lg text-white transition-colors shadow-lg" title="Rotate Up">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7"></path></svg>
+        </button>
+        <div class="flex gap-8">
+            <button id="pan-left" class="bg-slate-700 hover:bg-cyan-600 p-2 rounded-lg text-white transition-colors shadow-lg" title="Rotate Left">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path></svg>
+            </button>
+            <button id="pan-right" class="bg-slate-700 hover:bg-cyan-600 p-2 rounded-lg text-white transition-colors shadow-lg" title="Rotate Right">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
+            </button>
+        </div>
+        <button id="pan-down" class="bg-slate-700 hover:bg-cyan-600 p-2 rounded-lg text-white transition-colors shadow-lg" title="Rotate Down">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+        </button>
+    </div>
+
+    <div id="ui-panel" class="flex flex-col gap-6">
+        <div>
+            <h1 class="text-xl font-bold text-white tracking-tight mb-1">Land Use Classification</h1>
+            <p class="text-sm text-slate-400">Click anywhere on the globe to analyze.</p>
+        </div>
+
+        <!-- Custom Search Bar -->
+        <div class="relative">
+            <input type="text" id="search-input" placeholder="Search a city or country..." class="w-full bg-slate-800/80 border border-slate-700 rounded-lg py-2.5 pl-3 pr-10 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-cyan-500 shadow-inner">
+            <button id="search-btn" class="absolute right-2 top-2 text-slate-400 hover:text-cyan-400 transition-colors">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+            </button>
+        </div>
+
+        <!-- Mode Toggle -->
+        <div class="flex items-center justify-between bg-slate-800/50 p-3 rounded-lg border border-slate-700">
+            <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Data Mode</span>
+            <label class="relative inline-flex items-center cursor-pointer">
+                <input type="checkbox" id="data-mode-toggle" class="sr-only peer">
+                <div class="w-9 h-5 bg-slate-600 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-cyan-500"></div>
+                <span class="ml-3 text-sm font-medium text-slate-300">Real Data (GEE)</span>
+            </label>
+        </div>
+
+        <!-- Coordinates Status -->
+        <div class="bg-slate-800/50 p-3 rounded-lg border border-slate-700">
+            <div class="flex justify-between items-center">
+                <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Coordinates</span>
+                <span id="coord-status" class="text-sm font-medium text-emerald-400">Select a region...</span>
+            </div>
+            <div class="mt-1 text-sm font-bold text-white tracking-wide truncate" id="area-name">Ready</div>
+            <div class="mt-1 text-xs text-slate-500" id="coord-values">Lat: -, Lon: -</div>
+        </div>
+
+        <!-- System Status -->
+        <div id="loading-indicator" class="hidden flex items-center gap-3 text-sm text-sky-400 bg-sky-900/20 p-3 rounded-lg border border-sky-800/50">
+            <svg class="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+            Fetching imagery & executing CNN...
+        </div>
+
+        <!-- Results Section (Hidden initially) -->
+        <div id="results-panel" class="hidden flex-col gap-6">
+            
+            <div class="grid grid-cols-2 gap-4">
+                <div class="relative overflow-hidden rounded-lg">
+                    <h3 class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2 z-20 relative">Past (2020)</h3>
+                    <img id="img-before" class="image-container border border-slate-700 relative z-10" alt="Past Satellite Image" src="">
+                    <div id="scan-1" class="hidden"><div class="scanning-overlay"></div><div class="scan-line"></div></div>
+                </div>
+                <div class="relative overflow-hidden rounded-lg">
+                    <h3 class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2 z-20 relative">Present (2025)</h3>
+                    <img id="img-after" class="image-container border border-slate-700 relative z-10" alt="Present Satellite Image" src="">
+                    <div id="scan-2" class="hidden"><div class="scanning-overlay"></div><div class="scan-line"></div></div>
+                </div>
+            </div>
+
+            <!-- Change Detection Summary -->
+            <div>
+                <h3 class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Change Overview</h3>
+                <div class="bg-indigo-900/30 p-4 rounded-lg border border-indigo-500/30">
+                    <div id="change-text" class="text-lg font-semibold text-indigo-300 mb-1">Forest &rarr; Urban</div>
+                    <div id="change-subtext" class="text-sm text-indigo-200/70">Urban increased by 20%</div>
+                    <div class="flex flex-wrap gap-2 mt-3 block">
+                        <div id="confidence-text" class="hidden"></div>
+                        <div id="ndvi-text" class="hidden"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Charts -->
+            <div>
+                <h3 class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-4">Area Distribution</h3>
+                <div class="chart-container">
+                    <canvas id="distributionChart"></canvas>
+                </div>
+            </div>
+            
+            <!-- Actions -->
+            <div class="pt-2 border-t border-slate-700">
+                <button id="btn-download" onclick="downloadReport()" class="w-full bg-slate-700 hover:bg-slate-600 text-white font-medium py-2 px-4 rounded transition-colors flex justify-center items-center gap-2">
+                    <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" class="w-4 h-4"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+                    Download Report
+                </button>
+            </div>
+            
+        </div>
+    </div>
+
+    <!-- Application Logic -->
+    <script src="app.js"></script>
+    <script src="cesium.js"></script>
+</body>
+</html>
