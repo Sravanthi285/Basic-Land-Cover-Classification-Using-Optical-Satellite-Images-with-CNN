@@ -58,7 +58,7 @@ window.handleLocationSelected = async function(lat, lon) {
 
         // 2. Backend classification call (Pass isOcean flag and real data mode)
         const useRealData = document.getElementById('data-mode-toggle') ? document.getElementById('data-mode-toggle').checked : false;
-        const response = await fetch('http://localhost:5000/analyze', {
+        const response = await fetch('https://basic-land-cover-classification-using.onrender.com/analyze', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ lat: lat, lon: lon, is_ocean: isOcean, use_real_data: useRealData })
