@@ -1,4 +1,4 @@
-# 🌍 DeepEO: Multi-Temporal Land Cover Classification Pipeline
+# 🌍 DeepEO: Multi-Temporal Land Cover Classification 
 
 ![Python](https://img.shields.io/badge/Python-3.11+-blue.svg)
 ![TensorFlow](https://img.shields.io/badge/TensorFlow-2.14+-FF6F00.svg?logo=tensorflow)
