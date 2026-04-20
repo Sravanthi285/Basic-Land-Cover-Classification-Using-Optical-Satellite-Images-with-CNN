@@ -1,29 +1,9 @@
 import os
 import numpy as np
-import tensorflow as tf
 from PIL import Image
 
 MODEL_PATH = os.path.join(os.path.dirname(__file__), 'land_classifier.h5')
 CLASSES = ['Forest', 'Urban', 'Agriculture', 'Water', 'Barren']
-
-_model = None
-
-def get_model():
-    global _model
-    if _model is None:
-        if os.path.exists(MODEL_PATH):
-            _model = tf.keras.models.load_model(MODEL_PATH)
-        else:
-            print("WARNING: trained land_classifier.h5 not found.")
-            from tensorflow.keras.applications import MobileNetV2
-            from tensorflow.keras.layers import Dense, GlobalAveragePooling2D
-            from tensorflow.keras.models import Model
-            
-            base = MobileNetV2(include_top=False, input_shape=(128,128,3), weights=None)
-            x = GlobalAveragePooling2D()(base.output)
-            out = Dense(len(CLASSES), activation='softmax')(x)
-            _model = Model(inputs=base.input, outputs=out)
-    return _model
 
 def predict_patch(image_array):
     """
